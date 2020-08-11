@@ -495,6 +495,7 @@ spoof = Spoofer()
 sniff = Sniffer()
 act = Action(tomail,frommail)
 
+print "[*] Waiting for DHCP request from Deebot..."
 sniff.sniff()
 mac = sniff.mac_addr
 spoof.dhcp_disc(mac,sip,tip,nmask)
